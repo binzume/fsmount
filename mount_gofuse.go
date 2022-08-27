@@ -196,7 +196,7 @@ func (h *handle) Close() error {
 	return h.server.Unmount()
 }
 
-func MountFS(mountPoint string, fsys fs.FS, opt interface{}) (io.Closer, error) {
+func MountFS(mountPoint string, fsys fs.FS, opt *MountOptions) (io.Closer, error) {
 	nfs := pathfs.NewPathNodeFs(&fuseFs{FileSystem: pathfs.NewDefaultFileSystem(), fsys: fsys}, nil)
 	server, _, err := nodefs.MountRoot(mountPoint, nfs.Root(), nil)
 	if err != nil {

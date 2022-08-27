@@ -23,7 +23,10 @@ func fileCTime(fi fs.FileInfo) time.Time {
 	return fi.ModTime()
 }
 
-func MountFS(mountPoint string, fsys fs.FS, opt interface{}) (io.Closer, error) {
-	mountOpt, _ := opt.(*dkango.MountOptions)
+func MountFS(mountPoint string, fsys fs.FS, opt *MountOptions) (io.Closer, error) {
+	if opt == nil {
+		opt = &MountOptions{}
+	}
+	mountOpt, _ := opt.FuseOption.(*dkango.MountOptions)
 	return dkango.MountFS(mountPoint, fsys, mountOpt)
 }
