@@ -2,8 +2,11 @@
 
 This library is just a wrapper to easily mount fs.FS as a filesystem.
 
+Dependencies:
+
 - Windows: Dokan + [dkango](https://github.com/binzume/dkango)
 - Linux: fuse + [go-fuse](https://github.com/hanwen/go-fuse)
+- MacOS: macFUSE + [go-fuse](https://github.com/hanwen/go-fuse)
 
 ## Usage
 
