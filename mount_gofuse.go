@@ -210,7 +210,7 @@ func MountFS(mountPoint string, fsys fs.FS, opt *MountOptions) (io.Closer, error
 		<-sig
 		err := h.Close()
 		if err != nil {
-			fmt.Printf("Failed to unmount %s, you should umount manually: %w\n", mountPoint, err)
+			fmt.Printf("Failed to unmount %s, you should umount manually: %v\n", mountPoint, err)
 		}
 		os.Exit(1)
 	}()

@@ -1,5 +1,5 @@
 package fsmount
 
 type MountOptions struct {
-	FuseOption any
+	FuseOption interface{}
 }
