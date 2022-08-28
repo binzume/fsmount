@@ -23,7 +23,7 @@ func (fsys *writableDirFS) OpenWriter(name string, flag int) (io.WriteCloser, er
 }
 
 func (fsys *writableDirFS) Truncate(name string, size int64) error {
-	return os.Truncate(name, size)
+	return os.Truncate(path.Join(fsys.path, name), size)
 }
 
 func (fsys *writableDirFS) Remove(name string) error {

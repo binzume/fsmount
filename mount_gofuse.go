@@ -45,16 +45,6 @@ func writeAt(f io.Closer, b []byte, off int64) (int, error) {
 	return 0, fs.ErrInvalid
 }
 
-func truncate(fsys fs.FS, name string, size int64) error {
-	s, ok := fsys.(interface {
-		Truncate(string, int64) error
-	})
-	if !ok {
-		return fs.ErrInvalid
-	}
-	return s.Truncate(name, size)
-}
-
 type fuseFs struct {
 	pathfs.FileSystem
 	fsys fs.FS
@@ -62,9 +52,9 @@ type fuseFs struct {
 
 type fuseFile struct {
 	nodefs.File
-	path  string
-	fsys  fs.FS
-	fstat fs.FileInfo
+	fsys fs.FS
+	path string
+	file io.Closer
 }
 
 func fixPath(name string) string {
@@ -81,13 +71,14 @@ func (t *fuseFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.S
 		return nil, fuse.ENOENT
 	}
 
+	mode := uint32(f.Mode().Perm())
 	if f.IsDir() {
-		return &fuse.Attr{
-			Mode: fuse.S_IFDIR | 0755,
-		}, fuse.OK
+		mode |= fuse.S_IFDIR
+	} else {
+		mode |= fuse.S_IFREG
 	}
 	return &fuse.Attr{
-		Mode:  fuse.S_IFREG | 0644,
+		Mode:  mode,
 		Size:  uint64(f.Size()),
 		Ctime: uint64(f.ModTime().Unix()),
 		Mtime: uint64(f.ModTime().Unix()),
@@ -112,15 +103,28 @@ func (t *fuseFs) OpenDir(name string, context *fuse.Context) (c []fuse.DirEntry,
 
 func (t *fuseFs) Open(name string, flags uint32, context *fuse.Context) (file nodefs.File, code fuse.Status) {
 	name = fixPath(name)
-	f, err := fs.Stat(t.fsys, name)
-	if err != nil {
+
+	var f io.Closer
+	var err error
+	if flags&fuse.O_ANYWRITE != 0 {
+		if fsys, ok := t.fsys.(interface {
+			OpenWriter(string, int) (io.WriteCloser, error)
+		}); ok {
+			f, err = fsys.OpenWriter(name, int(flags))
+		}
+	} else {
+		f, err = t.fsys.Open(name)
+	}
+	if errors.Is(err, fs.ErrNotExist) {
 		return nil, fuse.ENOENT
 	}
-	if flags&fuse.O_ANYWRITE != 0 {
+	if errors.Is(err, fs.ErrPermission) {
 		return nil, fuse.EPERM
 	}
-
-	return &fuseFile{File: nodefs.NewDefaultFile(), fstat: f, fsys: t.fsys, path: name}, fuse.OK
+	if f == nil {
+		return nil, fuse.ENOSYS
+	}
+	return &fuseFile{File: nodefs.NewDefaultFile(), fsys: t.fsys, path: name, file: f}, fuse.OK
 }
 
 func (t *fuseFs) Create(name string, flags uint32, mode uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
@@ -133,46 +137,39 @@ func (t *fuseFs) Create(name string, flags uint32, mode uint32, context *fuse.Co
 		return nil, fuse.ENOSYS
 	}
 
-	// TOUCH
-	ff, err := fsys.OpenWriter(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC)
-	if err != nil {
+	f, err := fsys.OpenWriter(name, int(flags)|os.O_CREATE|os.O_TRUNC)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, fuse.ENOENT
+	}
+	if errors.Is(err, fs.ErrPermission) {
+		return nil, fuse.EPERM
+	}
+	if f == nil {
 		return nil, fuse.ENOSYS
 	}
-	ff.Close()
 
-	return &fuseFile{File: nodefs.NewDefaultFile(), fstat: nil, fsys: t.fsys, path: name}, fuse.OK
+	return &fuseFile{File: nodefs.NewDefaultFile(), file: f, fsys: t.fsys, path: name}, fuse.OK
 }
 
 func (f *fuseFile) Read(buf []byte, off int64) (fuse.ReadResult, fuse.Status) {
-	ff, err := f.fsys.Open(f.path)
-	if err != nil {
+	if f.file == nil {
 		return nil, fuse.ENOSYS
 	}
-	defer ff.Close()
-
-	len, err := readAt(ff, buf, off)
+	len, err := readAt(f.file, buf, off)
 	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
 		return nil, fuse.ENOSYS
 	}
-
+	if len == 0 {
+		return nil, fuse.ENODATA
+	}
 	return fuse.ReadResultData(buf[:len]), fuse.OK
 }
 
 func (f *fuseFile) Write(data []byte, off int64) (uint32, fuse.Status) {
-	fsys, ok := f.fsys.(interface {
-		OpenWriter(string, int) (io.WriteCloser, error)
-	})
-	if !ok {
+	if f.file == nil {
 		return 0, fuse.ENOSYS
 	}
-
-	ff, err := fsys.OpenWriter(f.path, os.O_RDWR|os.O_CREATE)
-	if err != nil {
-		return 0, fuse.ENOSYS
-	}
-	defer ff.Close()
-
-	len, err := writeAt(ff, data, off)
+	len, err := writeAt(f.file, data, off)
 	if err != nil {
 		return 0, fuse.ENOSYS
 	}
@@ -180,9 +177,24 @@ func (f *fuseFile) Write(data []byte, off int64) (uint32, fuse.Status) {
 }
 
 func (f *fuseFile) Truncate(size uint64) fuse.Status {
-	err := truncate(f.fsys, f.path, int64(size))
-	if err != nil {
-		return fuse.ENOSYS
+	if trunc, ok := f.fsys.(interface{ Truncate(int64) error }); ok {
+		if trunc.Truncate(int64(size)) == nil {
+			return fuse.OK
+		}
+	}
+	if trunc, ok := f.fsys.(interface{ Truncate(string, int64) error }); ok {
+		if trunc.Truncate(f.path, int64(size)) == nil {
+			return fuse.OK
+		}
+	}
+
+	return fuse.ENOSYS
+}
+
+func (f *fuseFile) Flush() fuse.Status {
+	if f.file != nil {
+		_ = f.file.Close()
+		f.file = nil
 	}
 	return fuse.OK
 }
