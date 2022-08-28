@@ -1,5 +1,7 @@
 github.com/binzume/dkango v0.1.0 h1:9a87YPz5LRDHU3rnl9VfYaq/+OsZ24LwCfAtVK4B9UA=
 github.com/binzume/dkango v0.1.0/go.mod h1:1vngZTylGCc0Zya2Tm50TV61LFJFuUryACSWU+ZDxng=
+github.com/binzume/dkango v0.1.1 h1:u9VbHVXJmJKfeqmUSRC63d3d6jGE+g8iQL0cTnX3w90=
+github.com/binzume/dkango v0.1.1/go.mod h1:i+CbTltgijANLi/+M0UHBHLvauDb39E2OA2bF4u8meo=
 github.com/hanwen/go-fuse v1.0.0/go.mod h1:unqXarDXqzAk0rt98O2tVndEPIpUgLD9+rwFisZH3Ok=
 github.com/hanwen/go-fuse/v2 v2.1.0 h1:+32ffteETaLYClUj0a3aHjZ1hOPxxaNEHiZiujuDaek=
 github.com/hanwen/go-fuse/v2 v2.1.0/go.mod h1:oRyA5eK+pvJyv5otpO/DgccS8y/RvYMaO00GgRLGryc=
