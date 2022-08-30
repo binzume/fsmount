@@ -206,14 +206,21 @@ func TestWritableFS(t *testing.T) {
 	}
 	_, err = f.Write([]byte("01234"))
 	if err != nil {
-		t.Fatal("Write() error", err)
+		t.Error("Write() error", err)
+	}
+	err = f.Close()
+	if err != nil {
+		t.Fatal("Close() error", err)
 	}
 
-	// TODO close and reopen
-
+	// Append2
+	f, err = os.OpenFile(fname, os.O_WRONLY|os.O_APPEND, os.ModePerm)
+	if err != nil {
+		t.Fatal("OpenFile() error", err)
+	}
 	_, err = f.Write([]byte("56789"))
 	if err != nil {
-		t.Fatal("Write() error", err)
+		t.Error("Write() error", err)
 	}
 	err = f.Close()
 	if err != nil {
@@ -222,17 +229,17 @@ func TestWritableFS(t *testing.T) {
 
 	stat, err := os.Stat(fname)
 	if stat.Size() != 10 {
-		t.Fatal("Size() should returns 10", stat.Size())
+		t.Error("Size() should returns 10", stat.Size())
 	}
 
 	// Err if exists
 	f, err = os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_EXCL, os.ModePerm)
 	if !errors.Is(err, fs.ErrExist) {
-		t.Fatal("OpenFile() should fail with ErrExist", err)
+		t.Error("OpenFile() should fail with ErrExist", err)
 	}
 
 	err = os.Remove(fname)
 	if err != nil {
-		t.Fatal("Remove() error", err)
+		t.Error("Remove() error", err)
 	}
 }

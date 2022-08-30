@@ -126,6 +126,10 @@ func (t *fuseFs) Open(name string, flags uint32, context *fuse.Context) (file no
 		if fsys, ok := t.fsys.(interface {
 			OpenWriter(string, int) (io.WriteCloser, error)
 		}); ok {
+			if int(flags)&os.O_APPEND != 0 {
+				// Cannot use O_APPEND because write offset is from start of file.
+				flags = (flags ^ uint32(os.O_APPEND)) | uint32(os.O_WRONLY)
+			}
 			f, err = fsys.OpenWriter(name, int(flags))
 		} else {
 			return nil, fuse.EPERM
