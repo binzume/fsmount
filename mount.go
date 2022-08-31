@@ -9,6 +9,10 @@ type MountOptions struct {
 	FuseOption interface{}
 }
 
+type MountHandle interface {
+	io.Closer
+}
+
 type OpenWriterFS interface {
 	fs.FS
 	OpenWriter(name string, flag int) (io.WriteCloser, error)

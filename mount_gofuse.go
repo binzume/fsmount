@@ -60,24 +60,16 @@ func errToStatus(err error) fuse.Status {
 	return fuse.ENOSYS
 }
 
-type fuseFs struct {
-	pathfs.FileSystem
-	fsys fs.FS
-}
-
-type fuseFile struct {
-	nodefs.File
-	fsys fs.FS
-	path string
-	file io.Closer
-	pos  int64
-}
-
 func fixPath(name string) string {
 	if name == "" {
 		return "."
 	}
 	return name
+}
+
+type fuseFs struct {
+	pathfs.FileSystem
+	fsys fs.FS
 }
 
 func (t *fuseFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
@@ -209,6 +201,14 @@ func (f *fuseFs) Rename(oldName string, newName string, context *fuse.Context) f
 	return fuse.ENOSYS
 }
 
+type fuseFile struct {
+	nodefs.File
+	fsys fs.FS
+	path string
+	file io.Closer
+	pos  int64
+}
+
 func (f *fuseFile) Read(buf []byte, off int64) (fuse.ReadResult, fuse.Status) {
 	if f.file == nil {
 		return nil, fuse.EBADF
@@ -234,7 +234,7 @@ func (f *fuseFile) Read(buf []byte, off int64) (fuse.ReadResult, fuse.Status) {
 
 func (f *fuseFile) Write(data []byte, off int64) (uint32, fuse.Status) {
 	if f.file == nil {
-		return 0, fuse.ENOSYS
+		return 0, fuse.EBADF
 	}
 	if off == f.pos {
 		if w, ok := f.file.(io.Writer); ok {
@@ -249,6 +249,9 @@ func (f *fuseFile) Write(data []byte, off int64) (uint32, fuse.Status) {
 }
 
 func (f *fuseFile) Truncate(size uint64) fuse.Status {
+	if f.file == nil {
+		return fuse.EBADF
+	}
 	if trunc, ok := f.file.(interface{ Truncate(int64) error }); ok {
 		return errToStatus(trunc.Truncate(int64(size)))
 	}
@@ -275,7 +278,7 @@ func (h *handle) Close() error {
 	return h.server.Unmount()
 }
 
-func MountFS(mountPoint string, fsys fs.FS, opt *MountOptions) (io.Closer, error) {
+func MountFS(mountPoint string, fsys fs.FS, opt *MountOptions) (MountHandle, error) {
 	nfs := pathfs.NewPathNodeFs(&fuseFs{FileSystem: pathfs.NewDefaultFileSystem(), fsys: fsys}, nil)
 	server, _, err := nodefs.MountRoot(mountPoint, nfs.Root(), nil)
 	if err != nil {
@@ -286,6 +289,7 @@ func MountFS(mountPoint string, fsys fs.FS, opt *MountOptions) (io.Closer, error
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
 	go func() {
+		defer h.Close()
 		<-sig
 		err := h.Close()
 		if err != nil {

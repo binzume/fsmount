@@ -1,7 +1,6 @@
 package fsmount
 
 import (
-	"io"
 	"io/fs"
 	"syscall"
 	"time"
@@ -23,7 +22,7 @@ func fileCTime(fi fs.FileInfo) time.Time {
 	return fi.ModTime()
 }
 
-func MountFS(mountPoint string, fsys fs.FS, opt *MountOptions) (io.Closer, error) {
+func MountFS(mountPoint string, fsys fs.FS, opt *MountOptions) (MountHandle, error) {
 	if opt == nil {
 		opt = &MountOptions{}
 	}
