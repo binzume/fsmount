@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestMountFS(t *testing.T) {
@@ -24,10 +25,7 @@ func TestMountFS(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer mount.Close()
-
-	if err != nil {
-		t.Error("ReadDir() error", err)
-	}
+	time.Sleep(10 * time.Millisecond)
 
 	fname := filepath.Join(mountPoint, "LICENSE")
 
@@ -121,6 +119,7 @@ func TestWritableFS(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer mount.Close()
+	time.Sleep(10 * time.Millisecond)
 
 	fname := filepath.Join(mountPoint, "output.txt")
 
@@ -222,6 +221,7 @@ func TestWritableFS(t *testing.T) {
 	if err != nil {
 		t.Error("Write() error", err)
 	}
+
 	err = f.Close()
 	if err != nil {
 		t.Fatal("Close() error", err)

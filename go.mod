@@ -3,7 +3,7 @@ module github.com/binzume/fsmount
 go 1.17
 
 require (
-	github.com/binzume/dkango v0.1.2
+	github.com/binzume/dkango v0.1.3
 	github.com/hanwen/go-fuse/v2 v2.1.0
 )
 
