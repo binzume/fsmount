@@ -27,5 +27,21 @@ func MountFS(mountPoint string, fsys fs.FS, opt *MountOptions) (MountHandle, err
 		opt = &MountOptions{}
 	}
 	mountOpt, _ := opt.FuseOption.(*dkango.MountOptions)
+	if opt.ReadOnly {
+		if mountOpt == nil {
+			mountOpt = &dkango.MountOptions{
+				Flags: dkango.FlagAltStream,
+			}
+		}
+		mountOpt.Flags |= dkango.FlagsWriteProtect
+	}
+	if opt.Debug {
+		if mountOpt == nil {
+			mountOpt = &dkango.MountOptions{
+				Flags: dkango.FlagAltStream,
+			}
+		}
+		mountOpt.Flags |= dkango.FlagDebug | dkango.FlagStderr
+	}
 	return dkango.MountFS(mountPoint, fsys, mountOpt)
 }

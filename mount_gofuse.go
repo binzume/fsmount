@@ -280,7 +280,12 @@ func (h *handle) Close() error {
 
 func MountFS(mountPoint string, fsys fs.FS, opt *MountOptions) (MountHandle, error) {
 	nfs := pathfs.NewPathNodeFs(&fuseFs{FileSystem: pathfs.NewDefaultFileSystem(), fsys: fsys}, nil)
-	server, _, err := nodefs.MountRoot(mountPoint, nfs.Root(), nil)
+	var mountOpt *nodefs.Options
+	if opt != nil {
+		mountOpt = nodefs.NewOptions()
+		mountOpt.Debug = opt.Debug
+	}
+	server, _, err := nodefs.MountRoot(mountPoint, nfs.Root(), mountOpt)
 	if err != nil {
 		return nil, err
 	}

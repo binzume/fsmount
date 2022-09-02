@@ -6,6 +6,8 @@ import (
 )
 
 type MountOptions struct {
+	ReadOnly   bool // Windows only: Even if the file system supports writing file, treat as read-only.
+	Debug      bool // Print debug logs.
 	FuseOption interface{}
 }
 
